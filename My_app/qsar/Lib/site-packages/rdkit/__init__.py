@@ -1,0 +1,52 @@
+
+
+""""""# start delvewheel patch
+def _delvewheel_init_patch_1_3_6():
+    import os
+    import sys
+    libs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, 'rdkit.libs'))
+    is_pyinstaller = getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
+    if not is_pyinstaller or os.path.isdir(libs_dir):
+        os.add_dll_directory(libs_dir)
+
+
+_delvewheel_init_patch_1_3_6()
+del _delvewheel_init_patch_1_3_6
+# end delvewheel patch
+
+import logging
+import sys
+
+# Need to import rdBase to properly wrap exceptions
+# otherwise they will leak memory
+from . import rdBase
+
+try:
+  from .rdBase import rdkitVersion as __version__
+except ImportError:
+  __version__ = 'Unknown'
+  raise
+
+logger = logging.getLogger("rdkit")
+
+# if we are running in a jupyter notebook, enable the extensions
+try:
+  kernel_name = get_ipython().__class__.__name__
+  module_name = get_ipython().__class__.__module__
+
+  if kernel_name == 'ZMQInteractiveShell' or module_name == 'google.colab._shell':
+    logger.info("Enabling RDKit %s jupyter extensions" % __version__)
+    from rdkit.Chem.Draw import IPythonConsole
+    rdBase.LogToPythonStderr()
+except Exception:
+  pass
+
+# Do logging setup at the end, so users can suppress the
+# "enabling jupyter" message at the root logger.
+log_handler = logging.StreamHandler(sys.stderr)
+logger.addHandler(log_handler)
+logger.setLevel(logging.WARN)
+logger.propagate = False
+
+# Uncomment this to use Python logging by default:
+# rdBase.LogToPythonLogger()
